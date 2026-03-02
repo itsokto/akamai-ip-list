@@ -1,57 +1,28 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"strings"
+	"path/filepath"
 )
 
-type bgpq4Result struct {
-	Prefixes []struct {
-		Prefix string `json:"prefix"`
-	} `json:"prefixes"`
-}
-
-type ruleSetCompat struct {
-	Version int    `json:"version"`
-	Rules   []rule `json:"rules"`
-}
-
-type rule struct {
-	IPCIDR []string `json:"ip_cidr"`
-}
-
-func queryBGPQ4(args []string) ([]string, error) {
-	cmd := exec.Command("bgpq4", args...)
-	cmd.Stderr = os.Stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("bgpq4 %s: %w", strings.Join(args, " "), err)
-	}
-	var result bgpq4Result
-	if err := json.Unmarshal(out, &result); err != nil {
-		return nil, fmt.Errorf("parse bgpq4 output: %w", err)
-	}
-	prefixes := make([]string, len(result.Prefixes))
-	for i, p := range result.Prefixes {
-		prefixes[i] = p.Prefix
-	}
-	return prefixes, nil
+var targets = []struct {
+	Name  string
+	ASSet string
+}{
+	{"akamai", "AS-AKAMAI"},
+	{"alibaba", "AS-ALIBABA"},
 }
 
 func main() {
-	output := flag.String("o", "rule-set.json", "output file path")
-	asSet := flag.String("as", "AS-AKAMAI", "AS-SET or ASN to query")
+	outputDir := flag.String("output", "output", "output directory")
 	noV4 := flag.Bool("no-v4", false, "skip IPv4")
 	noV6 := flag.Bool("no-v6", false, "skip IPv6")
 	noAggregate := flag.Bool("no-aggregate", false, "disable prefix aggregation")
 	sources := flag.String("S", "", "IRR sources (passed to bgpq4 -S)")
 	host := flag.String("h", "", "IRR server (passed to bgpq4 -h)")
-	version := flag.Int("version", 2, "rule-set version")
 	flag.Parse()
 
 	log.SetFlags(0)
@@ -67,43 +38,34 @@ func main() {
 		extra = append(extra, "-A")
 	}
 
-	var all []string
+	srsDir := filepath.Join(*outputDir, "srs")
+	plainDir := filepath.Join(*outputDir, "plain")
+	if err := os.MkdirAll(srsDir, 0755); err != nil {
+		log.Fatalf("create srs dir: %v", err)
+	}
+	if err := os.MkdirAll(plainDir, 0755); err != nil {
+		log.Fatalf("create plain dir: %v", err)
+	}
 
-	if !*noV4 {
-		args := append([]string{"-j", "-l", "prefixes"}, extra...)
-		args = append(args, *asSet)
-		fmt.Fprintf(os.Stderr, "Querying IPv4: bgpq4 %s\n", strings.Join(args, " "))
-		v4, err := queryBGPQ4(args)
+	for _, t := range targets {
+		fmt.Fprintf(os.Stderr, "\n=== %s (%s) ===\n", t.Name, t.ASSet)
+
+		prefixes, err := queryPrefixes(t.ASSet, extra, *noV4, *noV6)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("%s: %v", t.Name, err)
 		}
-		fmt.Fprintf(os.Stderr, "  %d IPv4 prefixes\n", len(v4))
-		all = append(all, v4...)
-	}
 
-	if !*noV6 {
-		args := append([]string{"-j", "-6", "-l", "prefixes"}, extra...)
-		args = append(args, *asSet)
-		fmt.Fprintf(os.Stderr, "Querying IPv6: bgpq4 %s\n", strings.Join(args, " "))
-		v6, err := queryBGPQ4(args)
-		if err != nil {
-			log.Fatal(err)
+		plainPath := filepath.Join(plainDir, t.Name+".txt")
+		if err := writePlain(plainPath, prefixes); err != nil {
+			log.Fatalf("%s: write plain: %v", t.Name, err)
 		}
-		fmt.Fprintf(os.Stderr, "  %d IPv6 prefixes\n", len(v6))
-		all = append(all, v6...)
-	}
 
-	data, err := json.MarshalIndent(ruleSetCompat{
-		Version: *version,
-		Rules:   []rule{{IPCIDR: all}},
-	}, "", "  ")
-	if err != nil {
-		log.Fatalf("json: %v", err)
-	}
+		srsPath := filepath.Join(srsDir, t.Name+".srs")
+		if err := writeSRS(srsPath, prefixes); err != nil {
+			log.Fatalf("%s: write srs: %v", t.Name, err)
+		}
 
-	if err := os.WriteFile(*output, data, 0644); err != nil {
-		log.Fatalf("write: %v", err)
+		fmt.Fprintf(os.Stderr, "  Wrote %s (%d prefixes)\n", plainPath, len(prefixes))
+		fmt.Fprintf(os.Stderr, "  Wrote %s\n", srsPath)
 	}
-
-	fmt.Fprintf(os.Stderr, "Wrote %s (%d prefixes)\n", *output, len(all))
 }
