@@ -32,12 +32,12 @@ func queryBGPQ4(args []string) ([]string, error) {
 	return prefixes, nil
 }
 
-func queryPrefixes(asSet string, extra []string, noV4, noV6 bool) ([]string, error) {
+func queryPrefixes(asns []string, extra []string, noV4, noV6 bool) ([]string, error) {
 	var all []string
 
 	if !noV4 {
 		args := append([]string{"-j", "-l", "prefixes"}, extra...)
-		args = append(args, asSet)
+		args = append(args, asns...)
 		fmt.Fprintf(os.Stderr, "Querying IPv4: bgpq4 %s\n", strings.Join(args, " "))
 		v4, err := queryBGPQ4(args)
 		if err != nil {
@@ -49,7 +49,7 @@ func queryPrefixes(asSet string, extra []string, noV4, noV6 bool) ([]string, err
 
 	if !noV6 {
 		args := append([]string{"-j", "-6", "-l", "prefixes"}, extra...)
-		args = append(args, asSet)
+		args = append(args, asns...)
 		fmt.Fprintf(os.Stderr, "Querying IPv6: bgpq4 %s\n", strings.Join(args, " "))
 		v6, err := queryBGPQ4(args)
 		if err != nil {

@@ -6,14 +6,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var targets = []struct {
-	Name  string
-	ASSet string
+	Name string
+	ASNs []string
 }{
-	{"akamai", "AS-AKAMAI"},
-	{"alibaba", "AS-ALIBABA"},
+	{"akamai", []string{"AS-AKAMAI"}},
+	{"alibaba", []string{"AS37963", "AS45102", "AS24429"}},
 }
 
 func main() {
@@ -48,9 +49,9 @@ func main() {
 	}
 
 	for _, t := range targets {
-		fmt.Fprintf(os.Stderr, "\n=== %s (%s) ===\n", t.Name, t.ASSet)
+		fmt.Fprintf(os.Stderr, "\n=== %s (%s) ===\n", t.Name, strings.Join(t.ASNs, " "))
 
-		prefixes, err := queryPrefixes(t.ASSet, extra, *noV4, *noV6)
+		prefixes, err := queryPrefixes(t.ASNs, extra, *noV4, *noV6)
 		if err != nil {
 			log.Fatalf("%s: %v", t.Name, err)
 		}
