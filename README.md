@@ -6,6 +6,7 @@ IP prefix lists for cloud/CDN providers, generated from IRR data using [bgpq4](h
 
 - Akamai
 - Alibaba Cloud
+- Cognosphere / HoYoverse
 
 ## Downloads
 

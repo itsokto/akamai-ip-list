@@ -15,6 +15,7 @@ var targets = []struct {
 }{
 	{"akamai", []string{"AS-AKAMAI"}},
 	{"alibaba", []string{"AS37963", "AS45102", "AS24429"}},
+	{"cognosphere", []string{"AS135377"}},
 }
 
 func main() {
