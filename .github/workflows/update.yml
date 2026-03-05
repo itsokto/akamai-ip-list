@@ -34,8 +34,8 @@ jobs:
             "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" \
             ../release-old 2>/dev/null || true
 
-          # compare plain text files (deterministic, unlike binary formats)
-          if diff -qr plain ../release-old/plain &>/dev/null 2>&1; then
+          # compare all generated files against release branch
+          if diff -qr . ../release-old &>/dev/null 2>&1; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
