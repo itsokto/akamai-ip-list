@@ -1,4 +1,4 @@
-name: Update IP rule-sets
+name: Update IP lists
 
 on:
   schedule:
@@ -21,10 +21,44 @@ jobs:
       - name: Install bgpq4
         run: sudo apt-get update && sudo apt-get install -y bgpq4
 
-      - name: Generate rule-sets
+      - name: Generate
         run: go run .
 
+      - name: Check for changes
+        id: diff
+        run: |
+          cd output
+
+          # clone release branch for comparison
+          git clone --depth 1 --branch release \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" \
+            ../release-old 2>/dev/null || true
+
+          # compare plain text files (deterministic, unlike binary formats)
+          if diff -qr plain ../release-old/plain &>/dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release description
+        if: steps.diff.outputs.changed == 'true'
+        id: desc
+        run: |
+          desc="Updated prefixes:"$'\n'
+          for f in output/plain/*.txt; do
+            name=$(basename "$f" .txt)
+            count=$(wc -l < "$f" | tr -d ' ')
+            desc+="- **${name}**: ${count} prefixes"$'\n'
+          done
+          {
+            echo "body<<EOF"
+            echo "$desc"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy to release branch
+        if: steps.diff.outputs.changed == 'true'
         run: |
           cd output
           git init
@@ -32,6 +66,17 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout --orphan release
           git add .
-          git commit -m "Update IP rule-sets $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git commit -m "Update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           git push --force origin release
+
+      - name: Create release
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(date -u +%Y-%m-%d)"
+          gh release delete "$tag" --yes 2>/dev/null || true
+          gh release create "$tag" \
+            --title "$tag" \
+            --notes "${{ steps.desc.outputs.body }}"
