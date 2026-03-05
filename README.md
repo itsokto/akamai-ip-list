@@ -27,7 +27,7 @@ Prebuilt files are published to the [`release`](../../tree/release) branch and u
       "tag": "akamai",
       "type": "remote",
       "format": "binary",
-      "url": "https://raw.githubusercontent.com/<owner>/cloud-geoip/release/srs/akamai.srs"
+      "url": "https://raw.githubusercontent.com/itsokto/cloud-geoip/release/srs/akamai.srs" // or https://cdn.jsdelivr.net/gh/itsokto/cloud-geoip@release/srs/akamai.srs
     }
   ]
 }
