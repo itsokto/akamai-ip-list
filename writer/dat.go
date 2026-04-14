@@ -12,7 +12,9 @@ import (
 
 var _ Writer = (*DatWriter)(nil)
 
-type DatWriter struct{}
+type DatWriter struct {
+	Filename string
+}
 
 func (w *DatWriter) Write(baseDir string, entries []Entry) error {
 	geoips := make([]*router.GeoIP, 0, len(entries))
@@ -32,7 +34,11 @@ func (w *DatWriter) Write(baseDir string, entries []Entry) error {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(baseDir, "cloud-geoip.dat"), data, 0644)
+	name := w.Filename
+	if name == "" {
+		name = "geoip.dat"
+	}
+	return os.WriteFile(filepath.Join(baseDir, name), data, 0644)
 }
 
 func parseCIDRs(prefixes []string) ([]*router.CIDR, error) {

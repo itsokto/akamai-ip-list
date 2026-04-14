@@ -57,7 +57,7 @@ func main() {
 	writers := []writer.Writer{
 		&writer.PlainWriter{},
 		&writer.SRSWriter{},
-		&writer.DatWriter{},
+		&writer.DatWriter{Filename: "cloud-geoip.dat"},
 	}
 
 	for _, w := range writers {
