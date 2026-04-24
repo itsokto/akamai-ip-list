@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/xtls/xray-core/app/router"
 	"google.golang.org/protobuf/proto"
@@ -24,7 +25,7 @@ func (w *DatWriter) Write(baseDir string, entries []Entry) error {
 			return fmt.Errorf("%s: %w", e.Name, err)
 		}
 		geoips = append(geoips, &router.GeoIP{
-			CountryCode: e.Name,
+			CountryCode: strings.ToUpper(e.Name),
 			Cidr:        cidrs,
 		})
 	}
